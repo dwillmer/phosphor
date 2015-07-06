@@ -18,9 +18,21 @@ var stylus = require('gulp-stylus');
 var typedoc = require('gulp-typedoc');
 var typescript = require('gulp-typescript');
 var uglify = require('gulp-uglify');
+var karma = require('karma').server;
 
 
-var typings = ['./typings/tsd.d.ts'];
+var buildTypings = [
+  './typings/es6-promise/es6-promise.d.ts'
+];
+
+var examplesTypings = buildTypings.concat([
+  './typings/codemirror/codemirror.d.ts'
+]);
+
+var testsTypings = buildTypings.concat([
+  './typings/expect.js/expect.js.d.ts',
+  './typings/mocha/mocha.d.ts'
+]);
 
 
 var tsSources = [
@@ -46,7 +58,7 @@ var tsSources = [
   'core/message',
   'core/messageloop',
   'core/nodebase',
-  'core/signal',
+  'core/signaling',
 
   'di/token',
   'di/container',
@@ -120,7 +132,7 @@ gulp.task('src', function() {
     target: 'ES5',
   });
 
-  var src = gulp.src(typings.concat(tsSources))
+  var src = gulp.src(buildTypings.concat(tsSources))
     .pipe(typescript(project));
 
   var dts = src.dts.pipe(concat('phosphor.d.ts'))
@@ -165,7 +177,7 @@ gulp.task('examples', function() {
     target: 'ES5',
   });
 
-  var sources = typings.concat([
+  var sources = examplesTypings.concat([
     'dist/phosphor.d.ts',
     'examples/**/*.ts'
   ]);
@@ -188,18 +200,40 @@ gulp.task('examples', function() {
 
 
 gulp.task('docs', function() {
-  // FIXME order of concat is important here because typedoc link tag
-  // resolving seems to have a bug in scope resolution order. As an
-  // example using the [[find]] tag inside the `algorithm` module
-  // will resolve to `CodeMirror#find` instead of the `find` function
-  // defined in `algorithm`.
-  return gulp.src(tsSources.concat(typings))
+  return gulp.src(buildTypings.concat(tsSources))
     .pipe(typedoc({
       out: './build/docs',
       name: 'Phosphor',
       target: 'ES5',
       mode: 'file',
-      includeDeclarations: true }));
+      includeDeclarations: false }));
+});
+
+
+gulp.task('tests', function() {
+  var project = typescript.createProject({
+    declarationFiles: false,
+    noImplicitAny: true,
+    target: 'ES5',
+  });
+
+  var sources = testsTypings.concat([
+    'dist/phosphor.d.ts',
+    'tests/**/*.ts'
+  ]);
+
+  return gulp.src(sources)
+    .pipe(typescript(project))
+    .pipe(concat('index.js'))
+    .pipe(header('"use strict";\n'))
+    .pipe(gulp.dest('tests/build'));
+});
+
+
+gulp.task('karma', function () {
+  karma.start({
+    configFile: __dirname + '/tests/karma.conf.js',
+  });
 });
 
 

@@ -11,6 +11,7 @@ import algo = collections.algorithm;
 
 import IMessage = core.IMessage;
 import Signal = core.Signal;
+import emit = core.emit;
 
 import IDisposable = utility.IDisposable;
 import Pair = utility.Pair;
@@ -166,22 +167,22 @@ class TabBar extends Widget {
   /**
    * A signal emitted when a tab is moved.
    */
-  tabMoved = new Signal<TabBar, Pair<number, number>>();
+  static tabMoved = new Signal<TabBar, Pair<number, number>>();
 
   /**
    * A signal emitted when the currently selected tab is changed.
    */
-  currentChanged = new Signal<TabBar, Pair<number, Tab>>();
+  static currentChanged = new Signal<TabBar, Pair<number, Tab>>();
 
   /**
    * A signal emitted when the user clicks a tab close icon.
    */
-  tabCloseRequested = new Signal<TabBar, Pair<number, Tab>>();
+  static tabCloseRequested = new Signal<TabBar, Pair<number, Tab>>();
 
   /**
    * A signal emitted when a tab is dragged beyond the detach threshold.
    */
-  tabDetachRequested = new Signal<TabBar, ITabDetachArgs>();
+  static tabDetachRequested = new Signal<TabBar, ITabDetachArgs>();
 
   /**
    * Construct a new tab bar.
@@ -198,10 +199,6 @@ class TabBar extends Widget {
    * Dispose of the resources held by the widget.
    */
   dispose(): void {
-    this.tabMoved.disconnect();
-    this.currentChanged.disconnect();
-    this.tabCloseRequested.disconnect();
-    this.tabDetachRequested.disconnect();
     this._releaseMouse();
     this._previousTab = null;
     this._currentTab = null;
@@ -230,7 +227,7 @@ class TabBar extends Widget {
     this._currentTab = next;
     this._previousTab = prev;
     this._updateTabZOrder();
-    this.currentChanged.emit(this, new Pair(next ? index : -1, next));
+    emit(this, TabBar.currentChanged, new Pair(next ? index : -1, next));
   }
 
   /**
@@ -637,7 +634,7 @@ class TabBar extends Widget {
     // emit the `tabCloseRequested` signal.
     var tab = this._tabs[index];
     if (tab.closable && tab.closeIconNode === event.target) {
-      this.tabCloseRequested.emit(this, new Pair(index, tab));
+      emit(this, TabBar.tabCloseRequested, new Pair(index, tab));
     }
   }
 
@@ -733,7 +730,7 @@ class TabBar extends Widget {
       if (!inBounds(data.contentRect, DETACH_THRESHOLD, clientX, clientY)) {
         // Update the data nad emit the `tabDetachRequested` signal.
         data.detachRequested = true;
-        this.tabDetachRequested.emit(this, {
+        emit(this, TabBar.tabDetachRequested, {
           tab: this.currentTab,
           index: this.currentIndex,
           clientX: clientX,
@@ -871,7 +868,7 @@ class TabBar extends Widget {
     this._updateTabZOrder();
 
     // Emit the `tabMoved` signal.
-    this.tabMoved.emit(this, new Pair(fromIndex, toIndex));
+    emit(this, TabBar.tabMoved, new Pair(fromIndex, toIndex));
 
     // If the tab bar is not attached, there is nothing left to do.
     if (!this.isAttached) {
@@ -919,7 +916,7 @@ class TabBar extends Widget {
       if (next) {
         this.currentTab = next;
       } else {
-        this.currentChanged.emit(this, new Pair(-1, void 0));
+        emit(this, TabBar.currentChanged, new Pair(-1, void 0));
       }
     } else if (tab === this._previousTab) {
       this._previousTab =  null;
@@ -929,8 +926,9 @@ class TabBar extends Widget {
     }
 
     // If the tab bar is not attached, remove the node immediately.
+    var content = this.contentNode;
     if (!this.isAttached) {
-      this._removeContentChild(tab.node);
+      safeRemove(content, tab.node);
       return tab;
     }
 
@@ -941,10 +939,10 @@ class TabBar extends Widget {
         this.update(true);
       }, () => {
         tab.removeClass(REMOVING_CLASS);
-        this._removeContentChild(tab.node);
+        safeRemove(content, tab.node);
       });
     } else {
-      this._removeContentChild(tab.node);
+      safeRemove(content, tab.node);
       this._withTransition(() => this.update(true));
     }
 
@@ -952,18 +950,6 @@ class TabBar extends Widget {
     this.updateGeometry();
 
     return tab;
-  }
-
-  /**
-   * Remove a child node of the tab bar content node.
-   *
-   * This is a no-op if the node is not a child of the content node.
-   */
-  private _removeContentChild(node: HTMLElement): void {
-    var content = this.contentNode;
-    if (content === node.parentNode) {
-      content.removeChild(node);
-    }
   }
 
   /**
@@ -1031,14 +1017,14 @@ class TabBar extends Widget {
    * will not be removed from the on exit.
    */
   private _withTransition(onEnter?: () => void, onExit?: () => void): void {
-    var node = this.contentNode;
-    node.classList.add(TRANSITION_CLASS);
+    var content = this.contentNode;
+    content.classList.add(TRANSITION_CLASS);
     if (onEnter) {
       onEnter();
     }
     setTimeout(() => {
       if (!this._dragData || !this._dragData.dragActive) {
-        node.classList.remove(TRANSITION_CLASS);
+        content.classList.remove(TRANSITION_CLASS);
       }
       if (onExit) {
         onExit();
@@ -1138,6 +1124,19 @@ function inBounds(r: ClientRect, v: number, x: number, y: number) {
     return false;
   }
   return true;
+}
+
+
+/**
+ * Safely remove a child node from its parent.
+ *
+ * This is a no-op if either node is null or if the given parent
+ * node does not match the child node true parent.
+ */
+function safeRemove(parent: Node, child: Node): void {
+  if (parent && child && child.parentNode === parent) {
+    parent.removeChild(child);
+  }
 }
 
 } // module phosphor.widgets
