@@ -15,6 +15,7 @@ import dom = phosphor.virtualdom.dom;
 import render = phosphor.virtualdom.render;
 import Widget = phosphor.widgets.Widget;
 import ListView = phosphor.widgets.ListView;
+import ResizeMessage = phosphor.widgets.ResizeMessage;
 
 /**
  * A console is a series of user inputs, each with
@@ -449,6 +450,11 @@ class ConsoleListView extends ListView {
     item.attach( host );
     item.fit();
     // host.appendChild( item );
+  }
+  
+  onResize( msg: ResizeMessage ): void {
+    console.log('Resize list...');
+    super.onResize( msg );
   }
 }
 
