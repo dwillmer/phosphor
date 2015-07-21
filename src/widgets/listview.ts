@@ -179,7 +179,7 @@ class ListView extends Widget {
   }
 
   /**
-   * Render the roWw content for the given row index.
+   * Render the row content for the given row index.
    *
    * @param index - The index of the row to be rendered.
    *
