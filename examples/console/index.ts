@@ -63,6 +63,8 @@ class Cursor {
 
   _blink_on_ms: number = 600;
   _blink_off_ms: number = 400;
+  
+  _interval_id: number;
 
   constructor( context: CanvasRenderingContext2D ) {
     this._ctx = context;
@@ -89,13 +91,18 @@ class Cursor {
   }
 
   _blink() {
-    setInterval( () => {
+    this._interval_id = setInterval( () => {
       this._draw('black');
       setTimeout( () => {
         this._draw('white');
         }, this._blink_on_ms
       );
     }, this._blink_on_ms + this._blink_off_ms );
+  }
+  
+  clearCursor() {
+    clearInterval( this._interval_id );
+    this._draw('white');
   }
 }
 
@@ -166,8 +173,8 @@ class ConsoleView extends Widget {
     this._font_size = 18;
     this._setTextAttributes( this._font_size );
     this._cn = <HTMLCanvasElement>document.createElement("canvas");
-    this._cn.width = 500;
-    this._cn.height = 200;
+    this._cn.width = window.innerWidth-40;
+    this._cn.height = 100;
     this._cn.style.border = "2px solid black";
 
     this._cn.onmousedown = () => { this._cnClicked(); };
@@ -197,14 +204,12 @@ class ConsoleView extends Widget {
     this._key_down_func = (evt: KeyboardEvent) => { this._onKeyDownHandler( evt ) };
     window.addEventListener(
       "keypress",
-      //this._keyPressHandler,
       this._key_press_func,
       true
     );
 
     window.addEventListener(
       "keydown",
-      //this._onKeyDownHandler,
       this._key_down_func,
       true
     );
@@ -219,8 +224,8 @@ class ConsoleView extends Widget {
   }
   
   private _removeListeners(): void {
-    window.removeEventListener( "keypress", this._key_press_func );
-    window.removeEventListener( "keydown", this._key_down_func );
+    window.removeEventListener( "keypress", this._key_press_func, true );
+    window.removeEventListener( "keydown", this._key_down_func, true );
   }
   
   /**
@@ -228,10 +233,10 @@ class ConsoleView extends Widget {
    * resources that could cause performance degradation.
    * 
    * This involves removing all event listeners, blinking cursors etc, 
-   * in order to free resources for the 
    */
   private _finaliseRow(): void {
     this._removeListeners();
+    this._cursor.clearCursor();
   }
 
   private _onMouseDownHandler( evt: MouseEvent, ctx: any ) {
